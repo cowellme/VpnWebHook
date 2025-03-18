@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.SignalR;
 using Newtonsoft.Json;
 using System;
+using System.Text;
 using VpnWebHook.WebHook;
 
 namespace VpnWebHook.Controllers
@@ -19,21 +20,37 @@ namespace VpnWebHook.Controllers
             var jsonObject = Newtonsoft.Json.Linq.JObject.Parse(root.ToString() ?? "");
 
             var id = jsonObject["object"]?["id"]?.ToString();
+            var sum = jsonObject["object"]?["amount"]?["value"]?.ToString();
             var suc = jsonObject["event"]?.ToString();
 
-            var hui = $"{suc}:{id}";
+            string data = $"{suc}:{id}:{sum}";
+            SendPostBot(data);
 
-            res += hui;
-
-            Program.SendNamedPipe(hui);
             return Ok();
         }
 
-        [HttpGet]
-        public IActionResult Get()
+        private async void SendPostBot(string data)
         {
-            Program.SendNamedPipe(res);
-            return Ok(res);
+            var url = "http://localhost:5253/";
+
+            using (var client = new HttpClient())
+            {
+                var content = new StringContent(data, Encoding.UTF8, "text/plain");
+                var response = await client.PostAsync(url, content);
+
+                if (response.IsSuccessStatusCode)
+                {
+                    var responseBody = await response.Content.ReadAsStringAsync();
+                    Console.WriteLine("Ответ от сервера: " + responseBody);
+                }
+                else
+                {
+                    Console.WriteLine("Ошибка: " + response.StatusCode);
+                }
+            }
         }
+
+        [HttpGet]
+        public IActionResult Get() { return Ok("Worked!"); }
     }
 }
